@@ -1,0 +1,81 @@
+services:
+  # base-open5gs is a build-only image, not meant to be run as a container
+  # Other services depend on it to copy compiled binaries during their build
+  # Note: No command/entrypoint defined, so it won't run even if included
+  base-open5gs:
+    image: "open5gs/base-open5gs:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/base-open5gs
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+
+  sgwc:
+    container_name: sgwc
+    image: "open5gs/sgwc:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/sgwc
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/sgwc.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.2
+        aliases:
+          - sgwc.open5gs.org
+    configs:
+      - source: sgwc_config
+        target: /etc/open5gs/custom/sgwc.yaml
+    depends_on:
+      - base-open5gs
+    init: true
+    stop_grace_period: 10s
+
+  sgwu:
+    container_name: sgwu
+    image: "open5gs/sgwu:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/sgwu
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/sgwu.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.3
+        aliases:
+          - sgwu.open5gs.org
+    configs:
+      - source: sgwu_config
+        target: /etc/open5gs/custom/sgwu.yaml
+    extra_hosts:
+      docker-host.external-ip: ${DOCKER_HOST_IP}
+    ports:
+      - "0.0.0.0:2152:2152/udp"
+      - "0.0.0.0:8805:8805/udp"
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - base-open5gs
+      - sgwc
+    init: true
+    stop_grace_period: 10s
+
+networks:
+  open5gs-4g:
+    name: open5gs-4g
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-ogs4g
+    ipam:
+      config:
+        - subnet: 10.44.44.0/24
+
+configs:
+  sgwc_config:
+    file: ../../configs/sgwc.yaml
+  sgwu_config:
+    file: ../../configs/sgwu.yaml
+

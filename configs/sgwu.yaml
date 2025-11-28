@@ -1,0 +1,16 @@
+logger:
+  file:
+    path: /var/log/open5gs/sgwu.log
+
+global:
+  max:
+    ue: 1024
+
+sgwu:
+  pfcp:
+    server:
+      - address: sgwu.open5gs.org
+  gtpu:
+    server:
+      - dev: eth0
+        advertise: docker-host.external-ip  # 通过 extra_hosts 映射到宿主机外网 IP，给 eNB 用

@@ -1,0 +1,18 @@
+logger:
+  file:
+    path: /var/log/open5gs/sgwc.log
+
+global:
+  max:
+    ue: 1024
+
+sgwc:
+  gtpc:
+    server:
+      - address: 10.44.44.2      # 与 docker-compose 中 sgwc 的固定 IP 一致
+  pfcp:
+    server:
+      - address: 10.44.44.2      # PFCP 自己监听的地址
+    client:
+      sgwu:
+        - address: 10.44.44.3    # 指向 SGW-U 容器的固定 IP

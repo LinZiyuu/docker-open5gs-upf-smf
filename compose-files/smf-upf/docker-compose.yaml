@@ -1,0 +1,103 @@
+services:
+  # base-open5gs is a build-only image, not meant to be run as a container
+  # Other services depend on it to copy compiled binaries during their build
+  # Note: No command/entrypoint defined, so it won't run even if included
+  base-open5gs:
+    image: "open5gs/base-open5gs:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/base-open5gs
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+
+  smf:
+    container_name: smf
+    image: "open5gs/smf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/smf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/smf.yaml"
+    networks:
+      open5gs:
+        aliases:
+          - smf.open5gs.org
+    configs:
+      - source: smf_config
+        target: /etc/open5gs/custom/smf.yaml
+    depends_on:
+      - base-open5gs
+      - nrf
+      - upf
+    init: true
+    stop_grace_period: 10s
+
+  upf:
+    container_name: upf
+    image: "open5gs/upf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/upf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/upf.yaml"
+    networks:
+      open5gs:
+        aliases:
+          - upf.open5gs.org
+    extra_hosts:
+      docker-host.external-ip: ${DOCKER_HOST_IP}
+    configs:
+      - source: upf_config
+        target: /etc/open5gs/custom/upf.yaml
+    ports:
+      - "0.0.0.0:2152:2152/udp"
+      - "0.0.0.0:8805:8805/udp"
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - base-open5gs
+    init: true
+    stop_grace_period: 10s
+
+  nrf:
+    container_name: nrf
+    image: "open5gs/nrf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/nrf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/nrf.yaml"
+    networks:
+      open5gs:
+        aliases:
+          - nrf.open5gs.org
+    configs:
+      - source: nrf_config
+        target: /etc/open5gs/custom/nrf.yaml
+    depends_on:
+      - base-open5gs
+    init: true
+    stop_grace_period: 10s
+
+networks:
+  open5gs:
+    name: open5gs
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-ogs
+    ipam:
+      config:
+        - subnet: 10.33.33.0/24
+
+configs:
+  smf_config:
+    file: ../../configs/smf.yaml
+  upf_config:
+    file: ../../configs/upf.yaml
+  nrf_config:
+    file: ../../configs/nrf.yaml
+
