@@ -1,0 +1,131 @@
+From 924cf71c9d317e9d25afb5b5a038fc17e814187e Mon Sep 17 00:00:00 2001
+From: Sukchan Lee <acetcom@gmail.com>
+Date: Fri, 28 Nov 2025 10:01:55 +0900
+Subject: [PATCH] pfcp: Fix crash on malformed Dropped-DL-Traffic-Threshold IE
+
+UPF could crash when handling PFCP Session Establishment/Update
+containing a CreateURR with a malformed Dropped-DL-Traffic-Threshold IE.
+Added length validation for Dropped-DL-Traffic-Threshold and
+Volume Measurement IEs to prevent buffer misuse and return an
+appropriate PFCP cause and offending IE value.
+
+Also removed assertion in IE parsing functions and replaced it with
+error logging and validation checks.
+
+Issues: #4154, #4152
+---
+ lib/pfcp/handler.c   | 16 ++++++++++++++--
+ lib/pfcp/types.c     |  6 ++++--
+ src/smf/n4-handler.c | 14 ++++++++++++--
+ 3 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/lib/pfcp/handler.c b/lib/pfcp/handler.c
+index 626736cb1b..f7f673e64d 100644
+--- a/lib/pfcp/handler.c
++++ b/lib/pfcp/handler.c
+@@ -1600,9 +1600,15 @@ ogs_pfcp_urr_t *ogs_pfcp_handle_create_urr(ogs_pfcp_sess_t *sess,
+     }
+ 
+     if (message->dropped_dl_traffic_threshold.presence) {
+-        ogs_pfcp_parse_dropped_dl_traffic_threshold(
++        decoded = ogs_pfcp_parse_dropped_dl_traffic_threshold(
+                 &urr->dropped_dl_traffic_threshold,
+                 &message->dropped_dl_traffic_threshold);
++        if (message->dropped_dl_traffic_threshold.len != decoded) {
++            ogs_error("Invalid Dropped DL Traffic Threshold");
++            *cause_value = OGS_PFCP_CAUSE_MANDATORY_IE_INCORRECT;
++            *offending_ie_value = OGS_PFCP_DROPPED_DL_TRAFFIC_THRESHOLD_TYPE;
++            return NULL;
++        }
+     }
+ 
+     if (message->quota_validity_time.presence) {
+@@ -1707,9 +1713,15 @@ ogs_pfcp_urr_t *ogs_pfcp_handle_update_urr(ogs_pfcp_sess_t *sess,
+     }
+ 
+     if (message->dropped_dl_traffic_threshold.presence) {
+-        ogs_pfcp_parse_dropped_dl_traffic_threshold(
++        decoded = ogs_pfcp_parse_dropped_dl_traffic_threshold(
+                 &urr->dropped_dl_traffic_threshold,
+                 &message->dropped_dl_traffic_threshold);
++        if (message->dropped_dl_traffic_threshold.len != decoded) {
++            ogs_error("Invalid Dropped DL Traffic Threshold");
++            *cause_value = OGS_PFCP_CAUSE_MANDATORY_IE_INCORRECT;
++            *offending_ie_value = OGS_PFCP_DROPPED_DL_TRAFFIC_THRESHOLD_TYPE;
++            return NULL;
++        }
+     }
+ 
+     if (message->quota_validity_time.presence) {
+diff --git a/lib/pfcp/types.c b/lib/pfcp/types.c
+index 4ee4dbf70d..4f1d04a234 100644
+--- a/lib/pfcp/types.c
++++ b/lib/pfcp/types.c
+@@ -659,7 +659,8 @@ int16_t ogs_pfcp_parse_dropped_dl_traffic_threshold(
+         size += sizeof(threshold->number_of_bytes_of_downlink_data);
+     }
+ 
+-    ogs_assert(size == octet->len);
++    if (size != octet->len)
++        ogs_error("Mismatch IE Length[%d] != Decoded[%d]", octet->len, size);
+ 
+     return size;
+ }
+@@ -775,7 +776,8 @@ int16_t ogs_pfcp_parse_volume_measurement(
+         size += sizeof(volume->downlink_n_packets);
+     }
+ 
+-    ogs_assert(size == octet->len);
++    if (size != octet->len)
++        ogs_error("Mismatch IE Length[%d] != Decoded[%d]", octet->len, size);
+ 
+     return size;
+ }
+diff --git a/src/smf/n4-handler.c b/src/smf/n4-handler.c
+index e5818cb7f5..ee048f6fce 100644
+--- a/src/smf/n4-handler.c
++++ b/src/smf/n4-handler.c
+@@ -1535,6 +1535,7 @@ uint8_t smf_epc_n4_handle_session_deletion_response(
+         ogs_pfcp_tlv_usage_report_session_deletion_response_t *use_rep =
+             &rsp->usage_report[i];
+         uint32_t urr_id;
++        int16_t decoded;
+         ogs_pfcp_volume_measurement_t volume;
+         ogs_pfcp_usage_report_trigger_t rep_trig;
+         if (use_rep->presence == 0)
+@@ -1544,8 +1545,12 @@ uint8_t smf_epc_n4_handle_session_deletion_response(
+         urr_id = use_rep->urr_id.u32;
+         if (!bearer || !bearer->urr || bearer->urr->id != urr_id)
+             continue;
+-        ogs_pfcp_parse_volume_measurement(
++        decoded = ogs_pfcp_parse_volume_measurement(
+                 &volume, &use_rep->volume_measurement);
++        if (use_rep->volume_measurement.len != decoded) {
++            ogs_error("Invalid Volume Measurement");
++            continue;
++        }
+         if (volume.ulvol)
+             sess->gy.ul_octets += volume.uplink_volume;
+         if (volume.dlvol)
+@@ -1726,6 +1731,7 @@ uint8_t smf_n4_handle_session_report_request(
+             ogs_pfcp_tlv_usage_report_session_report_request_t *use_rep =
+                 &pfcp_req->usage_report[i];
+             uint32_t urr_id;
++            int16_t decoded;
+             ogs_pfcp_volume_measurement_t volume;
+             ogs_pfcp_usage_report_trigger_t rep_trig;
+             if (use_rep->presence == 0)
+@@ -1735,8 +1741,12 @@ uint8_t smf_n4_handle_session_report_request(
+             urr_id = use_rep->urr_id.u32;
+             if (!bearer || !bearer->urr || bearer->urr->id != urr_id)
+                 continue;
+-            ogs_pfcp_parse_volume_measurement(
++            decoded = ogs_pfcp_parse_volume_measurement(
+                     &volume, &use_rep->volume_measurement);
++            if (use_rep->volume_measurement.len != decoded) {
++                ogs_error("Invalid Volume Measurement");
++                continue;
++            }
+             if (volume.ulvol)
+                 sess->gy.ul_octets += volume.uplink_volume;
+             if (volume.dlvol)

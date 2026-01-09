@@ -1,7 +1,15 @@
 services:
-  # base-open5gs is a build-only image, not meant to be run as a container
-  # Other services depend on it to copy compiled binaries during their build
-  # Note: No command/entrypoint defined, so it won't run even if included
+  # base-open5gs-asan-patched is a build-only image with ASAN enabled and security patch applied
+  # Not meant to be run as a container
+  base-open5gs-asan-patched:
+    image: "open5gs/base-open5gs-asan-patched:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/base-open5gs-asan-patched
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+
+  # base-open5gs is still needed for SMF and NRF (non-ASAN versions)
   base-open5gs:
     image: "open5gs/base-open5gs:${OPEN5GS_VERSION}"
     build:
@@ -29,15 +37,15 @@ services:
     depends_on:
       - base-open5gs
       - nrf
-      - upf
+      - upf-asan-patched
     init: true
     stop_grace_period: 10s
 
-  upf:
+  upf-asan-patched:
     container_name: upf
-    image: "open5gs/upf:${OPEN5GS_VERSION}"
+    image: "open5gs/upf-asan-patched:${OPEN5GS_VERSION}"
     build:
-      context: ../../images/upf
+      context: ../../images/upf-asan-patched
       args:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION}
         - UBUNTU_VERSION=${UBUNTU_VERSION}
@@ -59,9 +67,12 @@ services:
     cap_add:
       - NET_ADMIN
     depends_on:
-      - base-open5gs
+      - base-open5gs-asan-patched
     init: true
     stop_grace_period: 10s
+    # Mount volume for ASAN logs
+    volumes:
+      - upf_asan_patched_logs:/var/log/open5gs
 
   nrf:
     container_name: nrf
@@ -94,6 +105,10 @@ networks:
       config:
         - subnet: 10.33.33.0/24
 
+volumes:
+  upf_asan_patched_logs:
+    name: upf_asan_patched_logs
+
 configs:
   smf_config:
     file: ../../configs/smf.yaml
@@ -101,4 +116,3 @@ configs:
     file: ../../configs/upf.yaml
   nrf_config:
     file: ../../configs/nrf.yaml
-

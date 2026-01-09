@@ -1,6 +1,7 @@
 logger:
   file:
     path: /var/log/open5gs/sgwc.log
+  level: debug
 
 global:
   max:
@@ -10,6 +11,9 @@ sgwc:
   gtpc:
     server:
       - address: 10.44.44.2      # 与 docker-compose 中 sgwc 的固定 IP 一致
+    client:
+      smf:
+        - address: 10.44.44.4    # SMF/PGW 控制面地址
   pfcp:
     server:
       - address: 10.44.44.2      # PFCP 自己监听的地址

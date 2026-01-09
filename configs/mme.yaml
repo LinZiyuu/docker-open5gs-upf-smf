@@ -1,0 +1,42 @@
+logger:
+  file:
+    path: /var/log/open5gs/mme.log
+  level: debug
+
+global:
+  max:
+    ue: 1024
+
+mme:
+  freeDiameter: /etc/freeDiameter/mme.conf
+  s1ap:
+    server:
+      - address: 10.44.44.5      # MME S1AP 监听地址
+  gtpc:
+    server:
+      - address: 10.44.44.5      # MME GTP-C 监听地址
+    client:
+      sgwc:
+        - address: 10.44.44.2    # SGW-C 地址
+      smf:
+        - address: 10.44.44.4    # PGW/SMF 地址
+  metrics:
+    server:
+      - address: 10.44.44.5
+        port: 9090
+  gummei:
+    - plmn_id:
+        mcc: 001
+        mnc: 01
+      mme_gid: 2
+      mme_code: 1
+  tai:
+    - plmn_id:
+        mcc: 001
+        mnc: 01
+      tac: 1
+  security:
+    integrity_order: [ EIA2, EIA1, EIA0 ]
+    ciphering_order: [ EEA0, EEA1, EEA2 ]
+  network_name:
+    full: Open5GS

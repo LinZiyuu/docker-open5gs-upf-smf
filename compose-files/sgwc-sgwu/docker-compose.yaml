@@ -10,6 +10,108 @@ services:
         - OPEN5GS_VERSION=${OPEN5GS_VERSION}
         - UBUNTU_VERSION=${UBUNTU_VERSION}
 
+  nrf:
+    container_name: nrf
+    image: "open5gs/nrf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/nrf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/nrf.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.7
+        aliases:
+          - nrf.open5gs.org
+    configs:
+      - source: nrf_config
+        target: /etc/open5gs/custom/nrf.yaml
+    depends_on:
+      - base-open5gs
+    init: true
+    stop_grace_period: 10s
+
+  upf:
+    container_name: upf
+    image: "open5gs/upf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/upf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/upf.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.6
+        aliases:
+          - upf.open5gs.org
+    extra_hosts:
+      docker-host.external-ip: ${DOCKER_HOST_IP}
+    configs:
+      - source: upf_config
+        target: /etc/open5gs/custom/upf.yaml
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    depends_on:
+      - base-open5gs
+    init: true
+    stop_grace_period: 10s
+
+  smf:
+    container_name: smf
+    image: "open5gs/smf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/smf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/smf.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.4
+        aliases:
+          - smf.open5gs.org
+    configs:
+      - source: smf_config
+        target: /etc/open5gs/custom/smf.yaml
+      - source: smf_fd_config
+        target: /etc/freeDiameter/smf.conf
+    depends_on:
+      - base-open5gs
+      - nrf
+      - upf
+    init: true
+    stop_grace_period: 10s
+
+  mme:
+    container_name: mme
+    image: "open5gs/mme:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/mme
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/mme.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.5
+        aliases:
+          - mme.open5gs.org
+    configs:
+      - source: mme_config
+        target: /etc/open5gs/custom/mme.yaml
+      - source: mme_fd_config
+        target: /etc/freeDiameter/mme.conf
+    ports:
+      - "0.0.0.0:36412:36412/sctp"  # S1AP interface
+    depends_on:
+      - base-open5gs
+      - sgwc
+    init: true
+    stop_grace_period: 10s
+
   sgwc:
     container_name: sgwc
     image: "open5gs/sgwc:${OPEN5GS_VERSION}"
@@ -74,8 +176,19 @@ networks:
         - subnet: 10.44.44.0/24
 
 configs:
+  mme_config:
+    file: ../../configs/mme.yaml
+  mme_fd_config:
+    file: ../../configs/freeDiameter/mme.conf
   sgwc_config:
     file: ../../configs/sgwc.yaml
   sgwu_config:
     file: ../../configs/sgwu.yaml
-
+  smf_config:
+    file: ../../configs/smf.yaml
+  smf_fd_config:
+    file: ../../configs/freeDiameter/smf.conf
+  upf_config:
+    file: ../../configs/upf.yaml
+  nrf_config:
+    file: ../../configs/nrf.yaml
