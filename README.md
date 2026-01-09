@@ -77,19 +77,53 @@ docker compose -f compose-files/sgwc-sgwu/docker-compose.yaml --env-file=.env do
 
 ## Network Configuration
 
-- **SMF/UPF network**: `10.33.33.0/24` (bridge name: `br-ogs`)
-- **SGWC/SGWU network**: `10.44.44.0/24` (bridge name: `br-ogs4g`)
-  - SGWC IP: `10.44.44.2`
-  - SGWU IP: `10.44.44.3`
+### SMF/UPF Network (5G)
+- **Network**: `10.33.33.0/24` (bridge name: `br-ogs`)
+- **Component IPs**:
+  - UPF: `10.33.33.3`
+  - SMF: Auto-assigned by Docker
+  - NRF: Auto-assigned by Docker
+
+### SGWC/SGWU Network (4G/LTE)
+- **Network**: `10.44.44.0/24` (bridge name: `br-ogs4g`)
+- **Component IPs**:
+  - SGWC: `10.44.44.2`
+  - SGWU: `10.44.44.3`
+  - SMF: `10.44.44.4` (acts as PGW-C in 4G)
+  - MME: `10.44.44.5`
+  - UPF: `10.44.44.6` (acts as PGW-U in 4G)
+  - NRF: `10.44.44.7`
+  - MongoDB: `10.44.44.8`
+  - PCRF: `10.44.44.9`
 
 ## Ports Exposed
 
-- **UPF/SGWU**: 
+- **UPF**:
   - UDP 2152 (GTP-U)
   - UDP 8805 (PFCP)
+- **SGWU**:
+  - UDP 2152 (GTP-U)
+  - UDP 8805 (PFCP)
+- **MME**:
+  - SCTP 36412 (S1AP interface for eNodeB connections)
 
 ## Notes
 
+### 5G Deployment (SMF/UPF)
 - SMF and UPF require NRF (Network Repository Function) to be running
+- UPF requires privileged mode and NET_ADMIN capability for network interface management
+
+### 4G/LTE Deployment (SGWC/SGWU)
+- Complete 4G/LTE core network with MME support
 - SGWU depends on SGWC
+- MME depends on SGWC and SMF (acting as PGW)
+- PCRF provides policy control via Gx Diameter interface to SMF
+- MongoDB is used by PCRF for policy storage
 - UPF and SGWU require privileged mode and NET_ADMIN capability for network interface management
+- MME S1AP interface (port 36412/SCTP) is exposed for eNodeB connections
+
+### Interfaces
+- **S1AP**: MME ↔ eNodeB (SCTP port 36412)
+- **S5c**: SGWC ↔ SMF/PGW-C (GTPv2-C port 2123)
+- **Gx**: SMF ↔ PCRF (Diameter port 3868)
+- **PFCP (N4)**: SMF ↔ UPF (UDP port 8805)

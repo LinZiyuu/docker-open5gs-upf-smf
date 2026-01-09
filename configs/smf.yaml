@@ -1,6 +1,7 @@
 logger:
   file:
     path: /var/log/open5gs/smf.log
+  level: debug
 
 global:
 
@@ -8,23 +9,23 @@ smf:
   freeDiameter: /etc/freeDiameter/smf.conf
   sbi:
     server:
-      - address: smf.open5gs.org
+      - address: 10.44.44.4
         port: 80
     client:
       nrf:
-        - uri: http://nrf.open5gs.org:80
+        - uri: http://10.44.44.7:80
   pfcp:
     server:
-      - address: smf.open5gs.org
+      - address: 10.44.44.4
     client:
       upf:
-        - address: upf.open5gs.org
+        - address: 10.44.44.6
   gtpu:
     server:
-      - address: smf.open5gs.org
+      - address: 10.44.44.4
   gtpc:
     server:
-      - address: smf.open5gs.org
+      - address: 10.44.44.4
   session:
     - subnet: 10.45.0.0/16
       gateway: 10.45.0.1

@@ -32,6 +32,45 @@ services:
     init: true
     stop_grace_period: 10s
 
+  mongodb:
+    container_name: mongodb
+    image: mongo:5.0
+    command: mongod --bind_ip 0.0.0.0
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.8
+        aliases:
+          - mongodb.open5gs.org
+    volumes:
+      - mongodb_data:/data/db
+    init: true
+    stop_grace_period: 10s
+
+  pcrf:
+    container_name: pcrf
+    image: "open5gs/pcrf:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/pcrf
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/pcrf.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.9
+        aliases:
+          - pcrf.open5gs.org
+    configs:
+      - source: pcrf_config
+        target: /etc/open5gs/custom/pcrf.yaml
+      - source: pcrf_fd_config
+        target: /etc/freeDiameter/pcrf.conf
+    depends_on:
+      - base-open5gs
+      - mongodb
+    init: true
+    stop_grace_period: 10s
+
   upf:
     container_name: upf
     image: "open5gs/upf:${OPEN5GS_VERSION}"
@@ -180,6 +219,10 @@ configs:
     file: ../../configs/mme.yaml
   mme_fd_config:
     file: ../../configs/freeDiameter/mme.conf
+  pcrf_config:
+    file: ../../configs/pcrf.yaml
+  pcrf_fd_config:
+    file: ../../configs/freeDiameter/pcrf.conf
   sgwc_config:
     file: ../../configs/sgwc.yaml
   sgwu_config:
@@ -192,3 +235,6 @@ configs:
     file: ../../configs/upf.yaml
   nrf_config:
     file: ../../configs/nrf.yaml
+
+volumes:
+  mongodb_data:

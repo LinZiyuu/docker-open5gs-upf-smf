@@ -9,7 +9,7 @@ global:
 sgwu:
   pfcp:
     server:
-      - address: sgwu.open5gs.org
+      - address: 10.44.44.3
   gtpu:
     server:
       - dev: eth0

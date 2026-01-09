@@ -1,0 +1,41 @@
+db_uri: mongodb://mongodb:27017/open5gs
+logger:
+  file:
+    path: /var/log/open5gs/pcrf.log
+  level: debug
+
+global:
+  max:
+    ue: 1024
+
+pcrf:
+  freeDiameter: /etc/freeDiameter/pcrf.conf
+  metrics:
+    server:
+      - address: 10.44.44.9
+        port: 9090
+
+################################################################################
+# Default PCRF Policy Configuration
+################################################################################
+# Basic policy for internet access
+policy:
+  - supi_range:
+      - 001010000000001-001019999999999
+      - 999700000000001-999709999999999
+    session:
+      - name: internet
+        type: 3         # IPv4v6
+        ambr:
+          downlink:
+            value: 1
+            unit: 3     # Gbps
+          uplink:
+            value: 1
+            unit: 3
+        qos:
+          index: 9      # Non-GBR, priority 9
+          arp:
+            priority_level: 8
+            pre_emption_vulnerability: 1  # Disabled
+            pre_emption_capability: 1     # Disabled
