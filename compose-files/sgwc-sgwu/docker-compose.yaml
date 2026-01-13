@@ -43,6 +43,12 @@ services:
           - mongodb.open5gs.org
     volumes:
       - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--quiet", "--eval", "db.runCommand({ ping: 1 })"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     init: true
     stop_grace_period: 10s
 
@@ -66,8 +72,37 @@ services:
       - source: pcrf_fd_config
         target: /etc/freeDiameter/pcrf.conf
     depends_on:
-      - base-open5gs
-      - mongodb
+      base-open5gs:
+        condition: service_started
+      mongodb:
+        condition: service_healthy
+    init: true
+    stop_grace_period: 10s
+
+  hss:
+    container_name: hss
+    image: "open5gs/hss:${OPEN5GS_VERSION}"
+    build:
+      context: ../../images/hss
+      args:
+        - OPEN5GS_VERSION=${OPEN5GS_VERSION}
+        - UBUNTU_VERSION=${UBUNTU_VERSION}
+    command: "-c /etc/open5gs/custom/hss.yaml"
+    networks:
+      open5gs-4g:
+        ipv4_address: 10.44.44.10
+        aliases:
+          - hss.open5gs.org
+    configs:
+      - source: hss_config
+        target: /etc/open5gs/custom/hss.yaml
+      - source: hss_fd_config
+        target: /etc/freeDiameter/hss.conf
+    depends_on:
+      base-open5gs:
+        condition: service_started
+      mongodb:
+        condition: service_healthy
     init: true
     stop_grace_period: 10s
 
@@ -147,6 +182,7 @@ services:
       - "0.0.0.0:36412:36412/sctp"  # S1AP interface
     depends_on:
       - base-open5gs
+      - hss
       - sgwc
     init: true
     stop_grace_period: 10s
@@ -219,6 +255,10 @@ configs:
     file: ../../configs/mme.yaml
   mme_fd_config:
     file: ../../configs/freeDiameter/mme.conf
+  hss_config:
+    file: ../../configs/hss.yaml
+  hss_fd_config:
+    file: ../../configs/freeDiameter/hss.conf
   pcrf_config:
     file: ../../configs/pcrf.yaml
   pcrf_fd_config:

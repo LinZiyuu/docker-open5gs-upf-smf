@@ -5,7 +5,7 @@ logger:
 
 global:
   max:
-    ue: 1024
+    ue: 10
 
 sgwc:
   gtpc:

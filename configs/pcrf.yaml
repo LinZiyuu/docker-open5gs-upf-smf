@@ -1,4 +1,4 @@
-db_uri: mongodb://mongodb:27017/open5gs
+db_uri: mongodb://10.44.44.8:27017/open5gs
 logger:
   file:
     path: /var/log/open5gs/pcrf.log

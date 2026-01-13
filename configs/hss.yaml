@@ -1,0 +1,16 @@
+db_uri: mongodb://10.44.44.8:27017/open5gs
+logger:
+  file:
+    path: /var/log/open5gs/hss.log
+  level: debug
+
+global:
+  max:
+    ue: 1024
+
+hss:
+  freeDiameter: /etc/freeDiameter/hss.conf
+  metrics:
+    server:
+      - address: 10.44.44.10
+        port: 9090
